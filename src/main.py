@@ -1,4 +1,6 @@
 # USAGE:
+# python -m manim render -qh src/main.py <scene class name>
+# Example:
 # python -m manim render -qh src/main.py HistogramEqualization
 # -qh = high quality (1080p)
 # -ql = low quality (480p)
@@ -13,13 +15,13 @@ from manim import *
 sys.path.insert(0, os.path.dirname(__file__))
 from filters.histogram_equalizer import equalize_histogram
 
-
-IMAGE_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "dog_quality_bad.png")
-
+image_paths = {
+    "histogram_equalization": os.path.join(os.path.dirname(__file__), "..", "assets", "dog_quality_bad.png"),
+}
 
 class HistogramEqualization(Scene):
     def construct(self):
-        image_path = IMAGE_PATH
+        image_path = image_paths["histogram_equalization"]
 
         original_arr, equalized_arr = equalize_histogram(image_path)
 
