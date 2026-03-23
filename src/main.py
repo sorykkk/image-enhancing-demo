@@ -68,7 +68,6 @@ class HistogramEqualization(Scene):
 
         # Build blended transition frames
         n_steps = 30
-        blend_imgs = []
         blend_paths = []
         for i in range(1, n_steps + 1):
             alpha = i / n_steps
