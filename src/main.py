@@ -14,9 +14,11 @@ from manim import *
 
 sys.path.insert(0, os.path.dirname(__file__))
 from filters.histogram_equalizer import equalize_histogram
+from filters.tv_denoiser import tv_denoise_rof
 
 image_paths = {
     "histogram_equalization": os.path.join(os.path.dirname(__file__), "..", "assets", "dog_quality_bad.png"),
+    "tv_denoising": os.path.join(os.path.dirname(__file__), "..", "assets", "dog_quality_bad_noise.png"),
 }
 
 class HistogramEqualization(Scene):
@@ -104,6 +106,94 @@ class HistogramEqualization(Scene):
         orig_label.next_to(original_final, DOWN, buff=0.2)
         eq_label.next_to(original_img, DOWN, buff=0.2)
         self.play(Write(orig_label), Write(eq_label), run_time=0.8)
+
+        # Show formula
+        self.play(Write(formula), run_time=1.5)
+        self.wait(2)
+
+        # Cleanup temp files
+        for f in os.listdir(tmp_dir):
+            os.remove(os.path.join(tmp_dir, f))
+        os.rmdir(tmp_dir)
+
+
+class TotalVariationDenoising(Scene):
+    def construct(self):
+        image_path = image_paths["tv_denoising"]
+
+        original_arr, denoised_arr = tv_denoise_rof(image_path)
+
+        # Save arrays as temporary images for Manim to load
+        tmp_dir = tempfile.mkdtemp()
+        orig_path = os.path.join(tmp_dir, "original.png")
+        dn_path = os.path.join(tmp_dir, "denoised.png")
+        Image.fromarray(original_arr).save(orig_path)
+        Image.fromarray(denoised_arr).save(dn_path)
+
+        # --- Title ---
+        title = Text("Total Variation Denoising (ROF)", font_size=36).to_edge(UP, buff=0.3)
+        self.play(Write(title), run_time=1)
+
+        # --- Formula ---
+        formula = MathTex(
+            r"\min_u \; \frac{1}{2}\|u - f\|^2 \;+\; \lambda \int |\nabla u|\, dx",
+            font_size=30,
+        ).to_edge(DOWN, buff=0.4)
+
+        # --- Images ---
+        img_height = 5.0
+        original_img = ImageMobject(orig_path).set_height(img_height)
+        denoised_img = ImageMobject(dn_path).set_height(img_height)
+
+        original_img.move_to(ORIGIN)
+        denoised_img.move_to(ORIGIN)
+
+        # --- Labels ---
+        orig_label = Text("Noisy", font_size=24, color=RED)
+        dn_label = Text("Denoised", font_size=24, color=GREEN)
+
+        # Show original (noisy) image first
+        self.play(FadeIn(original_img), run_time=1)
+        self.wait(0.5)
+
+        # Build blended transition frames
+        n_steps = 30
+        blend_paths = []
+        for i in range(1, n_steps + 1):
+            alpha = i / n_steps
+            blended = (
+                (1 - alpha) * original_arr.astype(np.float64)
+                + alpha * denoised_arr.astype(np.float64)
+            ).astype(np.uint8)
+            p = os.path.join(tmp_dir, f"blend_{i}.png")
+            Image.fromarray(blended).save(p)
+            blend_paths.append(p)
+
+        # Smooth pixel-level transition in place
+        for p in blend_paths:
+            new_img = ImageMobject(p).set_height(img_height).move_to(original_img.get_center())
+            self.remove(original_img)
+            original_img = new_img
+            self.add(original_img)
+            self.wait(1 / 30)
+
+        self.wait(0.3)
+
+        # Slide denoised image to the right, show original on the left
+        original_final = ImageMobject(orig_path).set_height(img_height).move_to(LEFT * 3.8)
+        original_final.set_opacity(0)
+
+        self.add(original_final)
+        self.play(
+            original_img.animate.move_to(RIGHT * 3.8),
+            original_final.animate.set_opacity(1),
+            run_time=1,
+        )
+
+        # Labels under images
+        orig_label.next_to(original_final, DOWN, buff=0.2)
+        dn_label.next_to(original_img, DOWN, buff=0.2)
+        self.play(Write(orig_label), Write(dn_label), run_time=0.8)
 
         # Show formula
         self.play(Write(formula), run_time=1.5)
